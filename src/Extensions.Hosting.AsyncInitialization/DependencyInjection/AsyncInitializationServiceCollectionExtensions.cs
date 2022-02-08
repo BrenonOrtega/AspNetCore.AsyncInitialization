@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Extensions.Hosting.AsyncInitialization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -34,9 +35,14 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IServiceCollection AddAsyncInitializer<TInitializer>(this IServiceCollection services)
             where TInitializer : class, IAsyncInitializer
         {
-            return services
-                .AddAsyncInitialization()
-                .AddTransient<IAsyncInitializer, TInitializer>();
+            services.AddAsyncInitialization();
+
+            if (typeof(TInitializer).IsInterface && IsRegisteredService<TInitializer>(services))
+            {
+                return services.AddTransient<IAsyncInitializer>(x => x.GetRequiredService<TInitializer>());
+            }
+
+            return services.AddTransient<IAsyncInitializer, TInitializer>();
         }
 
         /// <summary>
@@ -119,5 +125,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 return _initializer();
             }
         }
+
+        private static bool IsRegisteredService<TInitializer>(IServiceCollection services) =>
+            services.Any(descriptor => descriptor.ServiceType.Equals(typeof(TInitializer)));
     }
 }

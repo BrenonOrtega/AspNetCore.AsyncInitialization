@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using FakeItEasy;
+using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Xunit;
@@ -93,6 +94,22 @@ namespace Extensions.Hosting.AsyncInitialization.Tests
         }
 
         [Fact]
+        public async Task Registering_Interfaces_As_Initializer_Should_Call_The_Concrete_Implementations()
+        {
+            var spy = new Spy();
+            var host = CreateHost(services => 
+                services.AddSingleton(spy)
+                .AddTransient<IDummyInitializer, DummyInitializer>()
+                .AddAsyncInitializer<IDummyInitializer>())
+                ;
+
+            await host.InitAsync();
+
+            spy.Initialized.Should().Be(true);
+        }
+
+
+        [Fact]
         public async Task InitAsync_throws_InvalidOperationException_when_services_are_not_registered()
         {
             var host = CreateHost(services => { });
@@ -110,22 +127,6 @@ namespace Extensions.Hosting.AsyncInitialization.Tests
                         ValidateScopes = validateScopes
                     }
                 ))
-                .Build();
-
-        public interface IDependency
-        {
-        }
-
-        public class Initializer : IAsyncInitializer
-        {
-            // ReSharper disable once NotAccessedField.Local
-            private readonly IDependency _dependency;
-
-            public Initializer(IDependency dependency)
-            {
-                _dependency = dependency;
-            }
-            public Task InitializeAsync() => Task.CompletedTask;
-        }
+                .Build();       
     }
 }
